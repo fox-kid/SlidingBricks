@@ -1,0 +1,242 @@
+<html>
+  <head>
+    <title>Write the Code!</title>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+
+    <script
+      type="text/javascript"
+      src="https://static.codehs.com/gulp/6d7c3ccf9b1aa19f20e8a8001b72e9509b9bb253/chs-js-lib/chs.js"
+    ></script>
+
+    <style>
+      canvas {
+        border: 1px solid black;
+        display: inline-block;
+        vertical-align: top;
+      }
+
+      pre {
+        border: 1px solid black;
+        display: inline-block;
+        width: 400px;
+        height: 500px;
+        background-color: #f5f5f5;
+      }
+    </style>
+  </head>
+
+  <body>
+    <h1>Write the Code!</h1>
+
+    <canvas width="400" height="500" class="codehs-editor-canvas"></canvas>
+    <pre id="console"></pre>
+
+    <script>
+      window.onload = function () {
+        var ball;
+        var RADIUS = 10;
+        var score = 0;
+        var highScore = 0;
+        var BOTTOM_OFFSET = 40;
+        var ballY = getHeight() - BOTTOM_OFFSET;
+        var OBSTACLE_WIDTH = 20;
+        var OBSTACLE_HEIGHT;
+
+        var chancesLeft = 1;
+        var obstacle;
+        var OBSTACLE_COLOR = Color.red;
+
+        var DELAY = 1500;
+        var arrObst = [];
+        var speed = 25;
+        var MAX_SPEED = 1;
+        var infoBar;
+        var infoBarHeight = getHeight() / 8;
+        var leftOffset = getWidth() / 12;
+
+        var ballLeftTop;
+        var ballLeftBot;
+        var ballRightTop;
+        var ballRightBot;
+        var crash;
+        var losing;
+        var active = true;
+
+        function start() {
+          createBall();
+          mouseMoveMethod(followMouse);
+          setTimer(createObstacles, DELAY);
+          setTimer(moveDown, speed);
+          createInfo();
+          mouseClickMethod(moveAgain);
+        }
+        // Creates the ball a player plays with
+        function createBall() {
+          ball = new Circle(RADIUS);
+          ball.setColor(Color.purple);
+          ball.setPosition(getWidth() / 2, ballY);
+          add(ball);
+        }
+        // Makes the ball follow the mouse movement
+        // before it hits any obstacle
+        function followMouse(e) {
+          if (!crash) {
+            ball.setPosition(e.getX(), ballY);
+
+            if (e.getX() < RADIUS) {
+              ball.setPosition(RADIUS, ballY);
+            } else if (e.getX() > getWidth() - RADIUS) {
+              ball.setPosition(getWidth() - RADIUS, ballY);
+            }
+          }
+        }
+        // Creates obstacle for the ball
+        // All the obstacles have 1 obstacle width
+        // space in between them.
+        function createObstacles() {
+          OBSTACLE_HEIGHT = Randomizer.nextInt(90, 110);
+          var lane = Randomizer.nextInt(0, getWidth() / OBSTACLE_WIDTH / 2 - 1);
+          var obstacleX = lane * 2 * OBSTACLE_WIDTH;
+          obstacle = new Rectangle(OBSTACLE_WIDTH, OBSTACLE_HEIGHT);
+          obstacle.setColor(OBSTACLE_COLOR);
+          obstacle.setPosition(obstacleX, 0 - OBSTACLE_HEIGHT + infoBarHeight);
+          add(obstacle);
+          arrObst.push(obstacle);
+          score += 10;
+
+          if (score % 20 == 0) {
+            changeSpeed();
+          }
+          // Creates info bar on top of obstacles
+          createInfo();
+        }
+        // Obstacles falling speed changes in every +20 scores,
+        // before it hits max speed 1 millisecond
+        function changeSpeed() {
+          if (speed > MAX_SPEED) {
+            speed -= 4;
+            return speed;
+          }
+        }
+        // Makes obstacles move down
+        function moveDown() {
+          for (var i = 0; i < arrObst.length; i++) {
+            arrObst[i].move(0, 1);
+          }
+          checkArea();
+          return highScore;
+        }
+        // Draws an info bar
+        function createInfo() {
+          createBar();
+          createScoreText();
+          createHighScoreText();
+        }
+        // Creates a bar rectangle
+        function createBar() {
+          infoBar = new Rectangle(getWidth(), infoBarHeight);
+          infoBar.setColor(Color.gray);
+          infoBar.setPosition(0, 0);
+          add(infoBar);
+        }
+        // Creates a score text
+        function createScoreText() {
+          var scoreText = new Text('Score: ' + score, '14pt Arial');
+          scoreText.setPosition(
+            leftOffset,
+            infoBarHeight / 2 + scoreText.getHeight() / 2
+          );
+          scoreText.setColor(Color.black);
+          add(scoreText);
+        }
+        // Creates a highscore text
+        function createHighScoreText() {
+          highScore = checkHighScore();
+          var highScoreText = new Text('Highscore: ' + highScore, '14pt Arial');
+          highScoreText.setPosition(
+            getWidth() - leftOffset - highScoreText.getWidth(),
+            infoBarHeight / 2 + highScoreText.getHeight() / 2
+          );
+          highScoreText.setColor(Color.black);
+          add(highScoreText);
+        }
+
+        // Checks if the ball hits any obstacles
+        function checkArea() {
+          ballLeftTop = getElementAt(
+            ball.getX() - RADIUS,
+            ball.getY() - RADIUS
+          );
+          ballLeftBot = getElementAt(
+            ball.getX() - RADIUS,
+            ball.getY() + RADIUS
+          );
+          ballRightTop = getElementAt(
+            ball.getX() + RADIUS,
+            ball.getY() - RADIUS
+          );
+          ballRightBot = getElementAt(
+            ball.getX() + RADIUS,
+            ball.getY() + RADIUS
+          );
+          crash =
+            ballLeftTop != null ||
+            ballLeftBot != null ||
+            ballRightTop != null ||
+            ballRightBot != null;
+
+          if (crash) {
+            stopGame();
+          }
+        }
+        // Stops game if the ball hits an obstacle
+        function stopGame() {
+          stopTimer(createObstacles);
+          stopTimer(moveDown);
+          active = !active;
+          highScore = checkHighScore();
+          endText();
+        }
+        // Changes highscore if you score more
+        function checkHighScore() {
+          if (score > highScore) {
+            highScore = score;
+          }
+          return highScore;
+        }
+
+        // Creates ending text if the player lose
+        function endText() {
+          losing = new Text(
+            "You've lost. Click anywhere to RESTART!",
+            '14pt Arial'
+          );
+          losing.setPosition(
+            getWidth() / 2 - losing.getWidth() / 2,
+            getHeight() / 2
+          );
+          add(losing);
+        }
+
+        // Restarts game if the okayer clicks on a mouse
+        function moveAgain() {
+          if (!active) {
+            score = 0;
+            for (var i = 0; i < arrObst.length; i++) {
+              remove(arrObst[i]);
+            }
+            remove(losing);
+            setTimer(createObstacles, DELAY);
+            setTimer(moveDown, speed);
+            active = !active;
+          }
+        }
+
+        if (typeof start === 'function') {
+          start();
+        }
+      };
+    </script>
+  </body>
+</html>
